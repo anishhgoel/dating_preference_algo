@@ -39,3 +39,9 @@ Each person in Group A has list of preffered partners in Group B, and vice versa
 - At the end, all pairs are stable.
 
  
+ #### The proposing group has the advantage:
+
+ 1. The proposers (Group A) have the freedom to choose whom to propose to based on their preferences.
+ 2. The acceptors (Group B) can only react to proposals and must choose the best proposal so far. They have no control over who proposes to them.
+3. Over time, proposers can “trade up” if they are rejected, always moving down their preference list, ensuring they never settle for someone lower than necessary.
+4. Acceptors always hold onto their best offer available at the time, but they don’t get to see all possible offers at once. This means they might miss out on a “better” match that comes later because they’re already engaged.
