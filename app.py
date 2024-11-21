@@ -31,7 +31,6 @@ openai_client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
 #Location details of user
 
 def get_location_details():
-    name = input("Enter your name: ")
     ipinfo_token = os.getenv('IPINFO_TOKEN')
     response = requests.get(f'https://ipinfo.io/json?token={ipinfo_token}')
     data = response.json()
@@ -192,6 +191,21 @@ def capture_and_analyze_face():
                                             'hair_color': '[specific color]',
                                             'hair_style': '[description]',
                                             'facial_hair': '[description or none]',
+                                            'eyebrows': '[description or none]',
+                                            'face_shape': '[description or none]',
+                                            'eye_shape': '[description or none]',
+                                            'skin_tone': '[description or none]',
+                                            'facial_features': '[description or none]',
+                                            'eyelashes': '[description or none]',
+                                            'nose': '[description or none]',
+                                            'mouth': '[description or none]',
+                                            'chin': '[description or none]',
+                                            'cheeks': '[description or none]',
+                                            'dimples': '[description or none]',
+                                            'face_symmetry': '[description or none]',  
+                                            'moles': '[description or none]',
+                                            'forehead': '[description or none]',
+                                            'jaw': '[description or none]',
                                             'distinctive_features': ['feature1', 'feature2', etc]
                                         }"""
                                     },
@@ -283,6 +297,127 @@ def update_user_features(user_id, features):
         print(f"Error updating user features: {e}")
         return False
 
+
+def get_match_preferences():
+    """
+    Gets user preferences for potential matches including physical features and hobbies
+    """
+    preferences = {}
+    
+    print("\n--- Physical Preferences ---")
+    # Height preferences
+    while True:
+        try:
+            min_height = input("Minimum height preferred (e.g., 5'8\" or press Enter to skip): ").strip()
+            if not min_height:
+                min_height = None
+                break
+            
+            # Validate height format
+            height_parts = min_height.replace('"', '').replace("'", ' ').split()
+            if len(height_parts) == 2:
+                feet = int(height_parts[0])
+                inches = int(height_parts[1])
+                if 4 <= feet <= 7 and 0 <= inches <= 11:
+                    min_height = f"{feet}'{inches}\""
+                    break
+            print("Invalid height format. Please use format like 5'8\" or leave empty")
+        except ValueError:
+            print("Invalid height format. Please use format like 5'8\" or leave empty")
+    
+    # Physical feature preferences using GPT for natural language processing
+    print("\nDescribe physical features you're looking for (e.g., hair color, eye color, build, etc.)")
+    print("Feel free to write is regular sentences or language.")
+    physical_description = input("Physical preferences: ")
+    
+    try:
+        response = openai_client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {
+                    "role": "system",
+                    "content": """Convert the physical preference description into a structured dictionary with these keys:
+                    {
+                        'hair_color': ['list of colors'],
+                        'eye_color': ['list of colors'],
+                        'hair_style': ['list of styles'],
+                        'build': ['list of body types'],
+                        'facial_features': ['list of features'],
+                        'other_features': ['list of other preferences']
+                    }
+                    Only include keys where preferences are mentioned."""
+                },
+                {
+                    "role": "user",
+                    "content": physical_description
+                }
+            ],
+            max_tokens=200,
+            temperature=0
+        )
+        
+        physical_preferences = eval(response.choices[0].message.content.strip())
+    except Exception as e:
+        print(f"Error processing physical preferences: {e}")
+        physical_preferences = {'raw_description': physical_description}
+    
+    print("\n--- Hobby and Interest Preferences ---")
+    print("Describe the interests and hobbies you'd like in a potential match")
+    print("Feel free to write is regular sentences or language.")
+
+    hobby_description = input("Hobby/Interest preferences: ")
+    
+    try:
+        response = openai_client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {
+                    "role": "system",
+                    "content": """Convert the hobby/interest preferences into a dictionary with these keys:
+                    {
+                        'required_hobbies': ['must-have activities'],
+                        'preferred_hobbies': ['nice-to-have activities'],
+                        'activity_level': 'active/moderate/relaxed',
+                        'interests': ['list of interest areas']
+                    }"""
+                },
+                {
+                    "role": "user",
+                    "content": hobby_description
+                }
+            ],
+            max_tokens=200,
+            temperature=0
+        )
+        
+        hobby_preferences = eval(response.choices[0].message.content.strip())
+    except Exception as e:
+        print(f"Error processing hobby preferences: {e}")
+        hobby_preferences = {'raw_description': hobby_description}
+    
+    # Combine all preferences
+    preferences = {
+        'height_preference': {
+            'min_height': min_height
+        },
+        'physical_preferences': physical_preferences,
+        'hobby_preferences': hobby_preferences
+    }
+    
+    # Print processed preferences for confirmation
+    print("\nYour Match Preferences:")
+    print("\nHeight Requirement:", min_height if min_height else "No specific requirement")
+    
+    print("\nPhysical Preferences:")
+    for key, value in physical_preferences.items():
+        print(f"{key.replace('_', ' ').title()}: {value}")
+    
+    print("\nHobby/Interest Preferences:")
+    for key, value in hobby_preferences.items():
+        print(f"{key.replace('_', ' ').title()}: {value}")
+    
+    return preferences
+
 #########################################################################################################
 # Registerning a user
 #########################################################################################################
@@ -297,6 +432,7 @@ def register_user():
             break
 
     # location
+    
     location_details = get_location_details()
     print(f"Detected location : {location_details['city']},{location_details['region']}")
     change_location = input("Do you want to change your location? (yes/no)").lower()
@@ -312,6 +448,10 @@ def register_user():
             'loc' : resolve_coordinates(city, region, country)
         }    
     
+    ethinicity = input("Enter your ethnicity: ")
+    height = input("Enter your height (in ftin): ")
+
+
     # gender
     VALID_GENDERS = ["man", "woman", "non-binary"]
     VALID_SEXUALITIES = ["straight", "asexual", "gay", "lesbian", "bisexual"]
@@ -344,6 +484,7 @@ def register_user():
     user_data = {
         "name": name,
         "date_of_birth": dob,
+        "Ethnicity": ethinicity,
         "location": {
             "city": location_details['city'],
             "region": location_details['region'],
@@ -356,8 +497,12 @@ def register_user():
         "interested_in": Interested_in,
         "hobbies": hobbies
     }
+    print("\nLet's understand what you're looking for in a potential match...")
+    match_preferences = get_match_preferences()
+    user_data['match_preferences'] = match_preferences
+    
     user_id = mongo_client.db.users.insert_one(user_data).inserted_id
-    add_photo = input("Would you like to add physical features using photo analysis? (yes/no): ").lower()
+    add_photo = input("Would you like to add your facial features using photo analysis? (yes/no): ").lower()
     
     if add_photo == 'yes':
         print("\nPreparing camera...")
