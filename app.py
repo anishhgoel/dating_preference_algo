@@ -142,9 +142,25 @@ def user_login():
     user = login_user(username, password)
     if user:
         print("Login successful!")
+        print(f"Hello, {user['name']}!")
+        while True:
+            print("\nMenu:")
+            print("1. Edit Profile")
+            print("2. Search for Other Profiles")
+            print("3. Logout")
+            choice = input("Enter your choice: ")
+
+            if choice == '1':
+                print("Editing profile...")
+            elif choice == '2':
+                print("Searching for other profiles...")
+            elif choice == '3':
+                print("Logging out...")
+                break
+            else:
+                print("Invalid choice. Please try again.")
     else:
         print("Login failed.")
-    
 
 
 
