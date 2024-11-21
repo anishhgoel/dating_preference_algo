@@ -92,12 +92,16 @@ def validate_hobbies(hobbies_list):
 
 
 def register_user():
+    # name
     name = input("Enter your name: ")
+    # age
     while True:
         dob_input = input("Enter your date of birth (YYYY-MM-DD): ")
         dob = validate_date(dob_input)
         if dob:
             break
+
+    # location
     location_details = get_location_details()
     print(f"Detected location : {location_details['city']},{location_details['state']}")
     change_location = input("Do you want to change your location? (yes/no)").lower()
@@ -106,7 +110,45 @@ def register_user():
         city = input("Enter your city: ")
         region = input("Enter your region: ")
         country = input("Enter your country: ")
-        
+        location_details = {
+            'city' : city,
+            'region' : region,
+            'country' : country,
+            'loc' : resolve_coordinates(city, region, country)
+        }    
+    
+    # gender
+    Pronouns = input("Enter your pronouns: ")
+    Gender = input("Enter your gender (Man/ Woman/ Non-binary): ").lower()
+    Sexuality = input("Enter your sexual orientation (Asexual/ Gay/ Lesbian/ Bisexual ): ").lower()
+    Interested_in = input("I'm interested in (Men/ Women/ Nonbinary people/ Everyone): ").lower()
+
+    # hobbies
+    hobbies_input = input("Talk about your hobbies, interests and passions: ")
+    hobbies = validate_hobbies(hobbies_input)
+
+    user_data = {
+        "name": name,
+        "date_of_birth": dob,
+        "location": {
+            "city": location_details['city'],
+            "region": location_details['region'],
+            "country": location_details['country'],
+            "coordinates": location_details['loc']
+        },
+        "pronouns": Pronouns,
+        "gender": Gender,
+        "sexual_orientation": Sexuality,
+        "interested_in": Interested_in,
+        "hobbies": hobbies
+    }
+    user_id = client.db.users.insert_one(user_data).inserted_id
+    print(f"User {user_id} registered successfully!")
+    print(user_data)
+
+
+
+    
 
 
 
@@ -115,4 +157,4 @@ def register_user():
 
 
 if __name__ == "__main__":
-    resolve_coordinates("Berkeley", "California", "India")
+    register_user()
