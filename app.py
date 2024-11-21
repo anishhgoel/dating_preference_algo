@@ -2,6 +2,10 @@ import os
 from dotenv import load_dotenv
 import pymongo
 import requests
+import cv2
+import base64
+from PIL import Image
+import io
 from pymongo.mongo_client import MongoClient
 from pymongo.server_api import ServerApi
 from openai import OpenAI
@@ -21,7 +25,9 @@ except Exception as e:
 
 #openai client
 openai_client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
-
+#########################################################################################################
+# Helper functions to register a user
+#########################################################################################################
 #Location details of user
 
 def get_location_details():
@@ -51,9 +57,6 @@ def resolve_coordinates(city, region, country):
         return None, None
     
 
-
-    
-
 def validate_date(dob_input):
     try:
         response = openai_client.chat.completions.create(
@@ -72,7 +75,7 @@ def validate_date(dob_input):
         print(f"An error occurred: {e}")
         return None
     
-
+    
 def validate_hobbies(hobbies_list):
     try:
         response = openai_client.chat.completions.create(
@@ -102,6 +105,187 @@ def validate_choice(user_input, valid_options, field_name):
     return user_input
 
 
+def parse_features_response(response_str):
+    """
+    Parses the OpenAI API response, handling markdown code blocks and cleaning the string
+    """
+    # Remove markdown code blocks if present
+    clean_str = response_str.replace('```python', '').replace('```', '').strip()
+    
+    try:
+        # Convert string to dictionary
+        features = eval(clean_str)
+        return features
+    except:
+        # Try cleaning up the string more aggressively if first attempt fails
+        try:
+            # Remove any whitespace and newlines
+            clean_str = ''.join(clean_str.split())
+            return eval(clean_str)
+        except Exception as e:
+            print(f"Error parsing features: {e}")
+            return None
+
+def capture_and_analyze_face():
+    """
+    Captures photo and analyzes it using OpenAI's Vision API with improved parsing
+    """
+    features = None
+    window_name = 'Camera Preview - Press SPACE to capture, ESC to cancel'
+    
+    try:
+        # For MacOS, use index 1
+        cap = cv2.VideoCapture(1)
+        
+        if not cap.isOpened():
+            print("Could not open camera. Please check camera permissions.")
+            return None
+            
+        # Set camera properties for good quality
+        cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
+        cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+        
+        # Create window and set properties
+        cv2.namedWindow(window_name, cv2.WINDOW_NORMAL)
+        cv2.resizeWindow(window_name, 640, 480)
+        
+        print("\nCamera initialized successfully!")
+        print("Position yourself in front of the camera and press SPACE when ready")
+        
+        while True:
+            ret, frame = cap.read()
+            if not ret or frame is None:
+                continue
+            
+            # Add instructions to frame
+            font = cv2.FONT_HERSHEY_SIMPLEX
+            cv2.putText(frame, 'Press SPACE to capture', (30, 50), font, 1, (255, 255, 255), 2)
+            cv2.putText(frame, 'Press ESC to cancel', (30, 90), font, 1, (255, 255, 255), 2)
+            
+            # Show frame
+            cv2.imshow(window_name, frame)
+            
+            key = cv2.waitKey(1) & 0xFF
+            if key == 27:  # ESC
+                print("Capture cancelled by user")
+                return None
+            elif key == 32:  # SPACE
+                print("\nCapturing photo...")
+                
+                # Convert frame to base64
+                _, buffer = cv2.imencode('.jpg', frame)
+                image_base64 = base64.b64encode(buffer).decode('utf-8')
+                
+                try:
+                    print("Analyzing facial features...")
+                    response = openai_client.chat.completions.create(
+                        model="gpt-4o-mini",
+                        messages=[
+                            {
+                                "role": "user",
+                                "content": [
+                                    {
+                                        "type": "text",
+                                        "text": """Analyze the person's facial features in this image. Return ONLY a Python dictionary in this exact format with no additional text or markdown formatting:
+                                        {
+                                            'eye_color': '[specific color, not unknown]',
+                                            'hair_color': '[specific color]',
+                                            'hair_style': '[description]',
+                                            'facial_hair': '[description or none]',
+                                            'distinctive_features': ['feature1', 'feature2', etc]
+                                        }"""
+                                    },
+                                    {
+                                        "type": "image_url",
+                                        "image_url": {
+                                            "url": f"data:image/jpeg;base64,{image_base64}",
+                                            "detail": "high"
+                                        }
+                                    }
+                                ]
+                            }
+                        ],
+                        max_tokens=300
+                    )
+                    
+                    features_str = response.choices[0].message.content.strip()
+                    features = parse_features_response(features_str)
+                    
+                    if features:
+                        print("\nFeatures extracted successfully!")
+                        print("\nDetected features:")
+                        for key, value in features.items():
+                            print(f"{key.replace('_', ' ').title()}: {value}")
+                            
+                        # Validate and clean up features
+                        if features.get('eye_color') == 'unknown':
+                            print("\nCould not determine eye color clearly. Please specify:")
+                            valid_colors = ['brown', 'blue', 'green', 'hazel', 'gray']
+                            print("Valid options:", ', '.join(valid_colors))
+                            while True:
+                                eye_color = input("Enter eye color: ").lower()
+                                if eye_color in valid_colors:
+                                    features['eye_color'] = eye_color
+                                    break
+                                print("Please enter a valid eye color")
+                        
+                        if features.get('distinctive_features') == ['undefined']:
+                            features['distinctive_features'] = []
+                            print("\nAny distinctive features to add? (glasses, piercings, etc.)")
+                            print("Enter features one by one (press Enter without text to finish):")
+                            while True:
+                                feature = input("Enter feature (or press Enter to finish): ").strip()
+                                if not feature:
+                                    break
+                                features['distinctive_features'].append(feature)
+                    else:
+                        print("Could not parse facial features")
+                        return None
+                        
+                except Exception as e:
+                    print(f"Error analyzing image: {e}")
+                    print("Please verify your OpenAI API key and model access.")
+                    return None
+                break
+    
+    except Exception as e:
+        print(f"Camera error: {e}")
+        return None
+        
+    finally:
+        try:
+            if cap is not None:
+                cap.release()
+            cv2.destroyAllWindows()
+        except:
+            pass
+            
+    return features
+
+
+def update_user_features(user_id, features):
+    """
+    Updates the user document with physical features
+    """
+    if features is None:
+        print("No features to update")
+        return False
+        
+    try:
+        result = mongo_client.db.users.update_one(
+            {"_id": user_id},
+            {"$set": {"physical_features": features}}
+        )
+        if result.modified_count > 0:
+            print("\nPhysical features updated in database successfully!")
+        return result.modified_count > 0
+    except Exception as e:
+        print(f"Error updating user features: {e}")
+        return False
+
+#########################################################################################################
+# Registerning a user
+#########################################################################################################
 def register_user():
     # name
     name = input("Enter your name: ")
@@ -173,14 +357,23 @@ def register_user():
         "hobbies": hobbies
     }
     user_id = mongo_client.db.users.insert_one(user_data).inserted_id
+    add_photo = input("Would you like to add physical features using photo analysis? (yes/no): ").lower()
+    
+    if add_photo == 'yes':
+        print("\nPreparing camera...")
+        features = capture_and_analyze_face()
+        
+        if features:
+            if update_user_features(user_id, features):
+                print("Physical features added successfully!")
+            else:
+                print("Failed to update physical features")
+    
     print(f"User {user_id} registered successfully!")
 
 
 
-    
-
-
-
+#########################################################################################################
 
 
 

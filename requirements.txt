@@ -1,0 +1,4 @@
+Pillow
+dotenv
+opencv-python-headless
+opencv-contrib-python-headless
