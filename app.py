@@ -11,16 +11,16 @@ load_dotenv()
 
 #Connecting to Database
 cluster_uri = os.getenv('MONGODB_CLUSTER_URL')  # Create a new client and connect to the server
-client = MongoClient(cluster_uri, server_api=ServerApi('1'))
+mongo_client = MongoClient(cluster_uri, server_api=ServerApi('1'))
 # Send a ping to confirm a successful connection
 try:
-    client.admin.command('ping')
+    mongo_client.admin.command('ping')
     print("Pinged your deployment. You successfully connected to MongoDB!")
 except Exception as e:
     print(e)
 
 #openai client
-client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
+openai_client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
 
 #Location details of user
 
@@ -56,7 +56,7 @@ def resolve_coordinates(city, region, country):
 
 def validate_date(dob_input):
     try:
-        response = client.chat.completions.create(
+        response = openai_client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
                 {"role": "system", "content": "You are a date formatting assistant. Respond only with the date in YYYY-MM-DD format. If the date is invalid, respond with 'INVALID'."},
@@ -65,7 +65,7 @@ def validate_date(dob_input):
             max_tokens=20,
             temperature=0
         )
-        standardized_date = response.choices[0].messages.content.strip()
+        standardized_date = response.choices[0].message.content.strip()
         return standardized_date
     
     except Exception as e:
@@ -75,7 +75,7 @@ def validate_date(dob_input):
 
 def validate_hobbies(hobbies_list):
     try:
-        response = client.chat.completions.create(
+        response = openai_client.chat.completions.create(
             model = "gpt-3.5-turbo",
             messages = [
                 {"role" : "system", "content": "You are a helpful assistant that standardizes a list of hobbies. You might receive a sentence or paragraph of someone telling what they like, respond only with the list of hobbies in the following format: ['hobby1', 'hobby2', 'hobby3'] and make sure each hobby is one word"},
@@ -103,7 +103,7 @@ def register_user():
 
     # location
     location_details = get_location_details()
-    print(f"Detected location : {location_details['city']},{location_details['state']}")
+    print(f"Detected location : {location_details['city']},{location_details['region']}")
     change_location = input("Do you want to change your location? (yes/no)").lower()
 
     if change_location == "yes":
@@ -120,7 +120,7 @@ def register_user():
     # gender
     Pronouns = input("Enter your pronouns: ")
     Gender = input("Enter your gender (Man/ Woman/ Non-binary): ").lower()
-    Sexuality = input("Enter your sexual orientation (Asexual/ Gay/ Lesbian/ Bisexual ): ").lower()
+    Sexuality = input("Enter your sexual orientation (Straight/ Asexual/ Gay/ Lesbian/ Bisexual ): ").lower()
     Interested_in = input("I'm interested in (Men/ Women/ Nonbinary people/ Everyone): ").lower()
 
     # hobbies
@@ -142,7 +142,7 @@ def register_user():
         "interested_in": Interested_in,
         "hobbies": hobbies
     }
-    user_id = client.db.users.insert_one(user_data).inserted_id
+    user_id = mongo_client.db.users.insert_one(user_data).inserted_id
     print(f"User {user_id} registered successfully!")
     print(user_data)
 
