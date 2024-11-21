@@ -53,3 +53,7 @@ Each person in Group A has list of preffered partners in Group B, and vice versa
 #Things to work on:
 
 - when a user wants to change location, we want to make sure that the combination of city, state, country is valid
+
+- for gender, only 3 brooad groups are there. need an option to be more specific 
+
+- same for sexuality, need to add more groups
