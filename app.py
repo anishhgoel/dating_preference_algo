@@ -90,6 +90,17 @@ def validate_hobbies(hobbies_list):
         print(f"An error occurred: {e}")
         return None
 
+def validate_choice(user_input, valid_options, field_name):
+    user_input = user_input.lower().strip()
+    valid_options_lower = [opt.lower() for opt in valid_options]
+    while user_input not in valid_options_lower:
+        print(f"\nInvalid {field_name}. Please choose from:")
+        for option in valid_options:
+            print(f"- {option}")
+        user_input = input(f"Enter your {field_name}: ").lower().strip()
+    
+    return user_input
+
 
 def register_user():
     # name
@@ -118,10 +129,29 @@ def register_user():
         }    
     
     # gender
+    VALID_GENDERS = ["man", "woman", "non-binary"]
+    VALID_SEXUALITIES = ["straight", "asexual", "gay", "lesbian", "bisexual"]
+    VALID_INTERESTS = ["men", "women", "nonbinary people", "everyone"]
+
     Pronouns = input("Enter your pronouns: ")
-    Gender = input("Enter your gender (Man/ Woman/ Non-binary): ").lower()
-    Sexuality = input("Enter your sexual orientation (Straight/ Asexual/ Gay/ Lesbian/ Bisexual ): ").lower()
-    Interested_in = input("I'm interested in (Men/ Women/ Nonbinary people/ Everyone): ").lower()
+
+    Gender = validate_choice(
+        input("Enter your gender (Man/ Woman/ Non-binary): "),
+        VALID_GENDERS,
+        "gender"
+    )
+
+    Sexuality = validate_choice(
+        input("Enter your sexual orientation (Straight/ Asexual/ Gay/ Lesbian/ Bisexual): "),
+        VALID_SEXUALITIES,
+        "sexual orientation"
+    )
+
+    Interested_in = validate_choice(
+        input("I'm interested in (Men/ Women/ Nonbinary people/ Everyone): "),
+        VALID_INTERESTS,
+        "interest"
+    )
 
     # hobbies
     hobbies_input = input("Talk about your hobbies, interests and passions: ")
@@ -144,7 +174,6 @@ def register_user():
     }
     user_id = mongo_client.db.users.insert_one(user_data).inserted_id
     print(f"User {user_id} registered successfully!")
-    print(user_data)
 
 
 
