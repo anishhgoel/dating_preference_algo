@@ -10,7 +10,7 @@ from openai import OpenAI
 load_dotenv()
 
 #Connecting to Database
-cluster_uri = os.getenv('MONGODB_URI')  # Create a new client and connect to the server
+cluster_uri = os.getenv('MONGODB_CLUSTER_URL')  # Create a new client and connect to the server
 client = MongoClient(cluster_uri, server_api=ServerApi('1'))
 # Send a ping to confirm a successful connection
 try:
@@ -36,5 +36,83 @@ def get_location_details():
         'loc' : data['loc']
     }
     return location
+
+def resolve_coordinates(city, region, country):
+    api_key = os.getenv('LOCATIONIQ_API_KEY')
+    location = f"{city}, {region}, {country}"
+    url = f"https://us1.locationiq.com/v1/search.php?key={api_key}&q={location}&format=json"
+    try:
+        response = requests.get(url)
+        data = response.json()[0]
+        print(data['lat'], data['lon'])
+        return data['lat'], data['lon']
+    except Exception as e:
+        print(f"An error occurred: {e}")
+        return None, None
+    
+
+
+    
+
+def validate_date(dob_input):
+    try:
+        response = client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": "You are a date formatting assistant. Respond only with the date in YYYY-MM-DD format. If the date is invalid, respond with 'INVALID'."},
+                {"role": "user", "content": f"Convert this date to YYYY-MM-DD format: {dob_input}"}
+            ],
+            max_tokens=20,
+            temperature=0
+        )
+        standardized_date = response.choices[0].messages.content.strip()
+        return standardized_date
+    
+    except Exception as e:
+        print(f"An error occurred: {e}")
+        return None
+    
+
+def validate_hobbies(hobbies_list):
+    try:
+        response = client.chat.completions.create(
+            model = "gpt-3.5-turbo",
+            messages = [
+                {"role" : "system", "content": "You are a helpful assistant that standardizes a list of hobbies. You might receive a sentence or paragraph of someone telling what they like, respond only with the list of hobbies in the following format: ['hobby1', 'hobby2', 'hobby3'] and make sure each hobby is one word"},
+                {"role" : "user", "content": f"Standardize this list of hobbies: {hobbies_list}. Return a comma seperated list"}
+            ],
+            max_tokens = 200,
+            temperature = 0
+        )
+        standardized_hobbies = response.choices[0].message.content.strip()
+        print(standardized_hobbies)
+    except Exception as e:
+        print(f"An error occurred: {e}")
+        return None
+
+
+def register_user():
+    name = input("Enter your name: ")
+    while True:
+        dob_input = input("Enter your date of birth (YYYY-MM-DD): ")
+        dob = validate_date(dob_input)
+        if dob:
+            break
+    location_details = get_location_details()
+    print(f"Detected location : {location_details['city']},{location_details['state']}")
+    change_location = input("Do you want to change your location? (yes/no)").lower()
+
+    if change_location == "yes":
+        city = input("Enter your city: ")
+        region = input("Enter your region: ")
+        country = input("Enter your country: ")
+        
+
+
+
+
+
+
+
 if __name__ == "__main__":
-    pass
+    resolve_coordinates("Berkeley", "California", "India")
